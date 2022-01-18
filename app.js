@@ -15,7 +15,7 @@ mongoose.connect(DEV_DB_URI, { useNewUrlParser: true });
 var app = express();
 
 var corsOptions = {
-    origin: 'http://localhost:3000',
+    origin: process.env.CORS_ORIGIN,
     optionsSuccessStatus: 200
 }
 
