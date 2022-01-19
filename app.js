@@ -10,7 +10,7 @@ var usersRouter = require('./routes/users');
 
 // MongoDB connection
 const DEV_DB_URI = "mongodb://127.0.0.1:27017/friendbook";
-mongoose.connect(DEV_DB_URI, { useNewUrlParser: true });
+mongoose.connect(process.env.MONGODB_URI || DEV_DB_URI, { useNewUrlParser: true });
 
 var app = express();
 
