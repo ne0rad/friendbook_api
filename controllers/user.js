@@ -1,6 +1,6 @@
 const User = require('../models/user');
 const { body, validationResult } = require('express-validator');
-const { sendStatus } = require('express/lib/response');
+const bcrypt = require('bcryptjs');
 
 exports.createUser = [
 
@@ -42,14 +42,17 @@ exports.createUser = [
             return;
 
         } else {
+            let salt = bcrypt.genSaltSync(10);
+            let hashedPassword = bcrypt.hashSync(req.body.password, salt);
 
             const user = User({
                 username: req.body.username,
-                password: req.body.password,
+                password: hashedPassword,
                 role: 0
             });
             user.save();
             res.sendStatus(200);
+            return;
         }
     }
 ]
@@ -87,17 +90,20 @@ exports.loginUser = [
         } else {
             User.findOne({ username: req.body.username })
                 .exec((err, user) => {
-                    if (err) return res.sendStatus(400);
+                    if (err) return next(err);
                     if (!user) return res.status(404).send({ error: "username", message: "User not found." });
 
-                    if (req.body.password === user.password) {
-
+                    bcrypt.compare(req.body.password, user.password, function (err, result) {
+                        if (err) return next(err);
+                        if (!result) {
+                            return res.status(406).send({ error: "password", message: "Wrong password." });
+                        }
                         // All good, let's login
+                        res.sendStatus(200);
+                        return;
+                    });
 
-                        res.sendStatus(200)
-                    } else {
-                        res.status(406).send({ error: "password", message: "Wrong password." });
-                    }
+
                 })
         }
     }
