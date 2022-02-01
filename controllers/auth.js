@@ -39,7 +39,7 @@ exports.user_create = [
 
             // Got errors, send them back to frontend
             const error = errors.array()[0];
-            res.status(406).send({ error: error.param, message: error.msg });
+            res.status(406).send({ loc: error.param, message: error.msg });
             return;
 
         } else {
@@ -85,25 +85,24 @@ exports.user_login = [
             // Got errors, send them back to frontend
 
             const error = errors.array()[0];
-            res.status(406).send({ error: error.param, message: error.msg });
+            res.status(406).send({ loc: error.param, message: error.msg });
             return;
 
         } else {
             User.findOne({ username: req.body.username })
                 .exec((err, user) => {
                     if (err) return next(err);
-                    if (!user) return res.status(404).send({ error: "username", message: "User not found." });
+                    const errorMsg = { loc: "password", message: "Invalid username or password." };
+                    if (!user) return res.status(401).send(errorMsg);
 
                     bcrypt.compare(req.body.password, user.password, function (err, result) {
                         if (err) return next(err);
                         if (!result) {
-                            return res.status(406).send({ error: "password", message: "Wrong password." });
+                            return res.status(401).send(errorMsg);
                         }
                         // All good, let's login
-                        const token = jwt.sign({ username: user.username, _id: user._id }, process.env.TOKEN_SECRET, { expiresIn: '1d' });
-                        user.token = token;
-                        user.save();
-                        return res.status(200).json({token: token});
+                        const token = jwt.sign({ username: user.username, _id: user._id }, process.env.TOKEN_SECRET, { expiresIn: '5d' });
+                        return res.status(200).json({ token: token });
                     });
 
 
