@@ -100,9 +100,16 @@ exports.user_login = [
                         if (!result) {
                             return res.status(401).send(errorMsg);
                         }
+
                         // All good, let's login
-                        const token = jwt.sign({ username: user.username, _id: user._id }, process.env.TOKEN_SECRET, { expiresIn: '5d' });
-                        return res.status(200).json({ token: token });
+                        if (user.token) {
+                            return res.status(200).send({ token: user.token });
+                        } else {
+                            const token = jwt.sign({ username: user.username, _id: user._id }, process.env.TOKEN_SECRET);
+                            user.token = token;
+                            user.save();
+                            return res.status(200).send({ token: token });
+                        }
                     });
 
 
