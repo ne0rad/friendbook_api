@@ -1,4 +1,5 @@
 const User = require('../models/user');
+const Notifications = require('../models/notifications');
 
 exports.get_my_info = (req, res, next) => {
 
@@ -18,19 +19,30 @@ exports.get_my_info = (req, res, next) => {
 }
 
 exports.update_my_info = (req, res, next) => {
-    
-        User.findById(req.user._id)
-            .exec((err, user) => {
 
-                if(err) return next(err);
-                if(!user) return res.status(404).json({ message: 'User not found.' });
+    User.findById(req.user._id)
+        .exec((err, user) => {
 
-                user.username = req.body.username;
-                user.email = req.body.email;
-                user.firstname = req.body.firstname;
-                user.lastname = req.body.lastname;
-                user.save();
-                
-                return res.status(200).json({ message: 'User updated.' });
-            });
+            if (err) return next(err);
+            if (!user) return res.status(404).json({ message: 'User not found.' });
+
+            user.username = req.body.username;
+            user.email = req.body.email;
+            user.firstname = req.body.firstname;
+            user.lastname = req.body.lastname;
+            user.save();
+
+            return res.status(200).json({ message: 'User updated.' });
+        });
+}
+
+
+exports.notifications = (req, res, next) => {
+    Notifications.find({ user: req.user._id })
+        .sort({ date: -1 })
+        .limit(20)
+        .exec((err, notifications) => {
+            if (err) return next(err);
+            return res.status(200).json({ notifications: notifications });
+        });
 }
