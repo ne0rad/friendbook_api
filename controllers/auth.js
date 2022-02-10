@@ -51,9 +51,13 @@ exports.user_create = [
                 password: hashedPassword,
                 role: 0
             });
-            user.save();
-            res.sendStatus(200);
-            return;
+            user.save((err, user) => {
+                if (err) return next(err);
+                const token = jwt.sign({ username: user.username, _id: user._id }, process.env.TOKEN_SECRET);
+                user.token = token;
+                user.save();
+                return res.status(200).json({ token: token });
+            });
         }
     }
 ]
