@@ -55,8 +55,12 @@ exports.send = [
                                     if (chatroom_index === -1) {
                                         notifications.chatrooms.push(chatroom._id);
                                         notifications.save();
+                                    } else {
+                                        // set read to false
+                                        notifications.chatrooms[chatroom_index].read = false;
+                                        notifications.save();
                                     }
-                                    
+
                                 });
                         });
 
