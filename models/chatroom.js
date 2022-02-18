@@ -4,7 +4,8 @@ var Schema = mongoose.Schema;
 
 var ChatroomSchema = new Schema({
     members: [{ type: Schema.Types.ObjectId, ref: 'User' }],
-    messages: [{ type: Schema.Types.ObjectId, ref: 'Message' }]
+    messages: [{ type: Schema.Types.ObjectId, ref: 'Message' }],
+    read: { type: Boolean, default: false }
 });
 
 
