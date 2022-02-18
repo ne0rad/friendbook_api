@@ -50,8 +50,13 @@ exports.send = [
                                         notifications.save();
                                     }
 
-                                    notifications.chatrooms.push(message);
-                                    notifications.save();
+                                    var chatroom_index = notifications.chatrooms.indexOf(chatroom._id);
+
+                                    if (chatroom_index === -1) {
+                                        notifications.chatrooms.push(chatroom._id);
+                                        notifications.save();
+                                    }
+                                    
                                 });
                         });
 
