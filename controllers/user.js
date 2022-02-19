@@ -1,5 +1,5 @@
 const User = require('../models/user');
-const Notifications = require('../models/notifications');
+const Notification = require('../models/notification');
 
 exports.get_my_info = (req, res, next) => {
 
@@ -38,7 +38,7 @@ exports.update_my_info = (req, res, next) => {
 
 
 exports.notifications = (req, res, next) => {
-    Notifications.find({ user: req.user._id })
+    Notification.find({ user: req.user._id })
         .sort({ date: -1 })
         .limit(20)
         .exec((err, notifications) => {
