@@ -11,148 +11,86 @@ exports.send = [
         if (!errors.isEmpty()) {
             return res.status(422).json({ errors: errors.array() });
         }
+        const { message, chatroom } = req.body;
+        const user = req.user._id;
 
-        User.findById(req.user._id)
-            .exec((err, user) => {
-                if (err) return next(err);
-                if (!user) return res.status(404).json({ message: 'User not found.' });
+        Chatroom.findById(chatroom)
+            .exec((err, chatroom) => {
+                if (err) {
+                    return res.status(500).json({
+                        error: err
+                    });
+                }
+                if (!chatroom) {
+                    return res.status(404).json({
+                        message: 'Chatroom not found.'
+                    });
+                }
+                if (chatroom.members.indexOf(user) === -1) {
+                    return res.status(401).json({
+                        error: 'You are not a member of this chatroom.'
+                    });
+                }
 
-                const message = new Message({
-                    'chatroom': req.body.chatroom,
-                    'author': user._id,
-                    'message': req.body.message,
-                    'date': Date.now(),
-                    'read': false
+                const newMessage = new Message({
+                    chatroom: chatroom,
+                    author: user,
+                    message: message,
+                    date: Date.now()
                 });
 
-                Chatroom.findById(req.body.chatroom)
-                    .exec((err, chatroom) => {
-                        if (err) return next(err);
-                        if (!chatroom) return res.status(404).json({ message: 'Chatroom not found.' });
-
-                        chatroom.messages.push(message);
-                        chatroom.save();
-                        message.save();
-
-                        var receiver = chatroom.members.filter(member => member.toString() !== user._id.toString());
-
-                        // add notification to receivers
-                        receiver.forEach(member => {
-                            Notifications.findById(member)
-                                .exec((err, notifications) => {
-                                    if (err) return next(err);
-                                    if (!notifications) {
-                                        var notifications = new Notifications({
-                                            user: member,
-                                            alerts: [],
-                                            chatrooms: [chatroom._id]
-                                        });
-                                        notifications.save();
-                                    }
-
-                                    var chatroom_index = notifications.chatrooms.indexOf(chatroom._id);
-
-                                    if (chatroom_index === -1) {
-                                        notifications.chatrooms.push(chatroom._id);
-                                        notifications.save();
-                                    } else {
-                                        // set read to false
-                                        notifications.chatrooms[chatroom_index].read = false;
-                                        notifications.save();
-                                    }
-
-                                });
-                        });
-
-                        return res.status(200).json({ message: 'Message sent.' });
-                    });
+                newMessage.save();
             });
     }
-]
+];
 
-exports.get_messages = [
-    body('chatroom').isLength({ min: 1 }).withMessage('Chatroom is required.'),
+exports.create_chatroom = (req, res, next) => [
+    body('recepient').isLength({ min: 1 }).withMessage('Recipient is required.'),
+
     (req, res, next) => {
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
             return res.status(422).json({ errors: errors.array() });
         }
+        const { recepient } = req.body;
 
-        Chatroom.findById(req.body.chatroom)
-            .populate({
-                path: 'messages',
-                populate: {
-                    path: 'author',
-                    select: 'username'
-                }
-            })
-            .exec((err, chatroom) => {
-                if (err) return next(err);
-                if (!chatroom) return res.status(404).json({ message: 'Chatroom not found.' });
-
-                return res.status(200).json({ messages: chatroom.messages });
-            });
-    }
-]
-
-
-exports.get_chatrooms = [
-    (req, res, next) => {
-        User.findById(req.user._id)
-            .exec((err, user) => {
-                if (err) return next(err);
-                if (!user) return res.status(404).json({ message: 'User not found.' });
-
-                Chatroom.find({ members: user._id })
-                    .populate({
-                        path: 'messages',
-                        options: { sort: { 'date': -1 } },
-                        populate: {
-                            path: 'author',
-                            select: 'username',
-                            limit: 1
-                        }
-                    })
-                    .populate({
-                        path: 'members',
-                        select: 'username'
-                    })
-                    .exec((err, chatrooms) => {
-                        if (err) return next(err);
-                        if (!chatrooms) return res.status(404).json({ message: 'Chatrooms not found.' });
-
-                        return res.status(200).json({ chatrooms: chatrooms });
+        User.findById(recepient)
+            .exec((err, recepient) => {
+                if (err) {
+                    return res.status(500).json({
+                        error: err
                     });
-            });
-    }
-]
-
-exports.load_older_messages = [
-    body('chatroom').isLength({ min: 1 }).withMessage('Chatroom is required.'),
-    body('message_count').isLength({ min: 1 }).withMessage('Message count is required.'),
-    (req, res, next) => {
-        const errors = validationResult(req);
-        if (!errors.isEmpty()) {
-            return res.status(422).json({ errors: errors.array() });
-        }
-
-        Chatroom.findById(req.body.chatroom)
-            .populate({
-                path: 'messages',
-                options: { sort: { 'date': -1 } },
-                populate: {
-                    path: 'author',
-                    select: 'username'
                 }
-                    .range([req.body.message_count, req.body.message_count + 20])
-            })
-            .exec((err, chatroom) => {
-                if (err) return next(err);
-                if (!chatroom) return res.status(404).json({ message: 'Chatroom not found.' });
+                if (!recepient) {
+                    return res.status(404).json({
+                        message: 'Recipient not found.'
+                    });
+                }
 
-                const messages = chatroom.messages.slice(req.body.message_count);
+                const chatroom = new Chatroom({
+                    members: [req.user._id, recepient._id]
+                });
 
-                return res.status(200).json({ messages: messages });
+                chatroom.save();
             });
     }
+
 ]
+
+exports.chatroom_messages = (req, res, next) => {
+    const user = req.user._id;
+
+    Chatroom.find({ members: user })
+        .populate({
+            path: 'members',
+            select: '_id'
+        })
+        .exec((err, chatrooms) => {
+            if (err) {
+                return res.status(500).json({
+                    error: err
+                });
+            }
+            res.status(200).json(chatrooms);
+        });
+}
