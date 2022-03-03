@@ -51,7 +51,9 @@ exports.send = [
     }];
 
 exports.create_chat = [
-    body('members').isLength({ min: 1 }).withMessage('Members are required.'),
+    body('members')
+        .isLength({ min: 1 })
+        .withMessage('Members are required.'),
     (req, res, next) => {
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
@@ -65,27 +67,40 @@ exports.create_chat = [
                 });
             }
 
-            const members = req.body.members.map(member => {
-                return User.findById(member).then(user => {
-                    if (!user) {
+            const members = JSON.parse(req.body.members).map(member => {
+                User.findOne({ username: member }).then(memberUser => {
+                    if (!memberUser) {
                         return res.status(404).json({
                             message: 'User not found.'
                         });
                     }
 
-                    return user._id;
+                    if (memberUser._id.equals(user._id)) {
+                        return res.status(401).json({
+                            message: 'User cannot be in chat with himself.'
+                        });
+                    }
+
+                    if (user.chats.includes(memberUser._id)) {
+                        return res.status(401).json({
+                            message: 'User already in chat.'
+                        });
+                    }
+
+                    member = memberUser._id;
                 });
             });
 
             const chat = new Chat({
                 members: [...members, user._id],
-                messages: []
+                messages: [],
+                readBy: []
             });
 
             chat.save().then(chat => {
                 res.status(200).json({
                     message: 'Chat created.',
-                    chat: chat
+                    chatID: chat._id
                 });
             });
         });
