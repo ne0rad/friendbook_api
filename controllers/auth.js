@@ -1,123 +1,32 @@
 const User = require('../models/user');
-const { body, validationResult } = require('express-validator');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
-exports.user_create = [
-
-    body('username')
-        .trim()
-        .isLength({ min: 3 })
-        .withMessage('Username too short.')
-        .bail()
-        .isLength({ max: 50 })
-        .withMessage('Username too long.')
-        .bail()
-        .isAlphanumeric()
-        .withMessage('Only letters and numbers.')
-        .bail()
-        .escape()
-        .custom(async function (value) {
-            const existingUser = await User.exists({ username: { "$regex": value, "$options": "i" } });
-            if (existingUser) return Promise.reject();
-            else return Promise.resolve();
-        })
-        .withMessage('Username already taken.'),
-
-    body('password')
-        .isLength({ min: 3 })
-        .withMessage('Password too short.')
-        .bail()
-        .isLength({ max: 50 })
-        .withMessage('Password too long.')
-        .escape(),
-
-    (req, res, next) => {
-
-        const errors = validationResult(req);
-        if (!errors.isEmpty()) {
-
-            // Got errors, send them back to frontend
-            const error = errors.array()[0];
-            res.status(406).send({ loc: error.param, message: error.msg });
-            return;
-
-        } else {
-            let salt = bcrypt.genSaltSync(10);
-            let hashedPassword = bcrypt.hashSync(req.body.password, salt);
-
-            const user = User({
-                username: req.body.username,
-                password: hashedPassword,
-                role: 0
-            });
-            user.save((err, user) => {
-                if (err) return next(err);
-                const token = jwt.sign({ username: user.username, _id: user._id }, process.env.TOKEN_SECRET);
-                user.token = token;
-                user.save();
-                return res.status(200).json({ token: token });
-            });
-        }
+exports.user_login = (data, cb) => {
+    if (data.token) {
+        jwt.verify(data.token, process.env.TOKEN_SECRET, (err, decoded) => {
+            if (err) return cb("Invalid token");
+            return cb(null, decoded);
+        });
+    } else if (data.username && data.password) {
+        User.findOne({ username: data.username }).then(userDB => {
+            if (!userDB) {
+                return cb('Invalid username or password.');
+            } else {
+                if (bcrypt.compareSync(data.password, userDB.password)) {
+                    let user = { username: userDB.username, _id: userDB._id };
+                    if (!userDB.token) {
+                        userDB.token = jwt.sign(user, process.env.TOKEN_SECRET);
+                        userDB.save();
+                    }
+                    user.token = userDB.token;
+                    return cb(null, user);
+                } else {
+                    return cb('Invalid username or password.');
+                }
+            }
+        });
+    } else {
+        return cb('Invalid username or password.');
     }
-]
-
-exports.user_login = [
-    body('username')
-        .trim()
-        .isLength({ min: 3 })
-        .withMessage('Username too short.')
-        .isLength({ max: 50 })
-        .withMessage('Username too long.')
-        .bail()
-        .isAlphanumeric()
-        .withMessage('Only letters and numbers.')
-        .bail()
-        .escape(),
-
-    body('password')
-        .isLength({ min: 3 })
-        .withMessage('Password too short.')
-        .isLength({ max: 50 })
-        .withMessage('Password too long.')
-        .escape(),
-
-    (req, res, next) => {
-        const errors = validationResult(req);
-        if (!errors.isEmpty()) {
-
-            // Got errors, send them back to frontend
-
-            const error = errors.array()[0];
-            res.status(406).send({ loc: error.param, message: error.msg });
-            return;
-
-        } else {
-            User.findOne({ username: req.body.username })
-                .exec((err, user) => {
-                    if (err) return next(err);
-                    const errorMsg = { loc: "password", message: "Invalid username or password." };
-                    if (!user) return res.status(401).send(errorMsg);
-
-                    bcrypt.compare(req.body.password, user.password, function (err, result) {
-                        if (err) return next(err);
-                        if (!result) {
-                            return res.status(401).send(errorMsg);
-                        }
-
-                        // All good, let's login
-                        if (user.token) {
-                            return res.status(200).send({ token: user.token });
-                        } else {
-                            const token = jwt.sign({ username: user.username, _id: user._id }, process.env.TOKEN_SECRET);
-                            user.token = token;
-                            user.save();
-                            return res.status(200).send({ token: token });
-                        }
-                    });
-
-
-                })
-        }
-    }
-]
+}
