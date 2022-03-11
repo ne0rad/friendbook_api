@@ -1,108 +1,96 @@
 const User = require('../models/user');
 const Message = require('../models/message');
 const Chat = require('../models/chat');
-const { body, validationResult } = require('express-validator');
+const { mongoose } = require('mongoose');
 
-exports.send = [
-    body('message').isLength({ min: 1 }).withMessage('Message is required.'),
-    body('chatID').isLength({ min: 1 }).withMessage('ChatID is required.'),
-    (req, res, next) => {
-        const errors = validationResult(req);
-        if (!errors.isEmpty()) {
-            return res.status(422).json({ errors: errors.array() });
-        }
-
-        User.findById(req.user._id).then(user => {
-            if (!user) {
-                return res.status(404).json({
-                    message: 'User not found.'
-                });
-            }
-
-            Chat.findById(req.body.chatID).then(chat => {
-                if (!chat) {
-                    return res.status(404).json({
-                        message: 'Chat not found.'
-                    });
-                }
-
-                if (!chat.members.includes(user._id)) {
-                    return res.status(401).json({
-                        message: 'User not in chat.'
-                    });
-                }
-
-                const message = new Message({
-                    author: user._id,
-                    message: req.body.message,
-                    date: Date.now()
-                })
-
-                message.save().then(message => {
-                    chat.messages.push(message._id);
-                    chat.save().then(() => {
-                        res.status(200).json({
-                            message: 'Message sent.'
-                        });
-                    });
-                });
-            });
-        });
-    }];
-
-exports.create_chat = [
-    body('members')
-        .isLength({ min: 1 })
-        .withMessage('Members are required.'),
-    (req, res, next) => {
-        const errors = validationResult(req);
-        if (!errors.isEmpty()) {
-            return res.status(422).json({ errors: errors.array() });
-        }
-
-        User.findById(req.user._id).then(user => {
-            if (!user) {
-                return res.status(404).json({
-                    message: 'User not found.'
-                });
-            }
-
-            const members = JSON.parse(req.body.members).map(member => {
-                User.findOne({ username: member }).then(memberUser => {
-                    if (!memberUser) {
-                        return res.status(404).json({
-                            message: 'User not found.'
-                        });
-                    }
-
-                    if (memberUser._id.equals(user._id)) {
-                        return res.status(401).json({
-                            message: 'User cannot be in chat with himself.'
-                        });
-                    }
-
-                    if (user.chats.includes(memberUser._id)) {
-                        return res.status(401).json({
-                            message: 'User already in chat.'
-                        });
-                    }
-
-                    member = memberUser._id;
-                });
-            });
-
-            const chat = new Chat({
-                members: [...members, user._id],
-                messages: [],
-                readBy: []
-            });
-
-            chat.save().then(chat => {
-                res.status(200).json({
-                    message: 'Chat created.',
-                    chatID: chat._id
-                });
-            });
-        });
+exports.send_message = (user, data, callback) => {
+    if (!data.message) {
+        return callback('Invalid message.');
     }
-];
+    if (!data.chatroom || !data.chatroom.match(/^[0-9a-fA-F]{24}$/)) {
+        return callback('Invalid chatroom.');
+    }
+
+    Chat.findById(data.chatroom).then(chatDB => {
+        if (!chatDB) {
+            return callback('Invalid chatroom.');
+        } else {
+            let message = new Message({
+                message: data.message,
+                author_id: user._id,
+                author: user.username,
+                date: Date.now()
+            });
+            message.save().then(messageDB => {
+                chatDB.messages.push(messageDB._id);
+                chatDB.save().then(() => {
+                    return callback(null, { message: messageDB });
+                });
+            }).catch(err => {
+                return callback(err);
+            });
+        }
+    });
+}
+
+exports.create_chat = (user, data, callback) => {
+    if (!data.recipient) {
+        return callback('Invalid recipient.');
+    }
+
+    User.findOne({ username: data.recipient }).then(recipientDB => {
+        if (!recipientDB) {
+            return callback('Invalid recipient.');
+        } else {
+
+            Chat.findOne({ members: { $all: [user._id, recipientDB._id] } }).then(chatDB => {
+                if (chatDB) {
+                    return callback(null, { chatroom: chatDB._id });
+                } else {
+                    let chat = new Chat({
+                        members: [user._id, recipientDB._id]
+                    });
+                    chat.save().then(chatDB => {
+                        return callback(null, { chatroom: chatDB._id });
+                    })
+                }
+            });
+        }
+    }).catch(err => {
+        return callback(err);
+    });
+
+}
+
+exports.join_chat = (user, data, callback) => {
+    if (!data.chatroom || !data.chatroom.match(/^[0-9a-fA-F]{24}$/)) {
+        return callback('Invalid chatroom.');
+    }
+
+    Chat.findById(data.chatroom)
+        .populate({ path: 'members', select: 'username' })
+        .populate('messages')
+        .then(chatDB => {
+            if (!chatDB) {
+                return callback('Invalid chatroom.');
+            } else {
+                let member = chatDB.members.find(member => member._id.toString() === user._id.toString());
+                if (!member) {
+                    return callback('You are not a member of this chat.');
+                } else {
+                    return callback(null, { chatroom: chatDB._id, messages: chatDB.messages, members: chatDB.members });
+                }
+            }
+        });
+}
+
+exports.get_chats = (user, data, callback) => {
+    Chat.find({ members: user._id })
+        .populate({ path: 'members', select: 'username' })
+        .populate({ path: 'messages', select: 'message author date', limit: 1, options: { sort: { date: -1 } } })
+        .then(chatsDB => {
+            return callback(null, { chatrooms: chatsDB });
+        }).catch(err => {
+            return callback(err);
+        });
+}
