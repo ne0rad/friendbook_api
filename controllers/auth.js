@@ -6,6 +6,7 @@ exports.user_login = (data, cb) => {
     if (data.token) {
         jwt.verify(data.token, process.env.SECRET, (err, decoded) => {
             if (err) return cb("Invalid token");
+            decoded.token = data.token;
             return cb(null, decoded);
         });
     } else if (data.username && data.password) {
