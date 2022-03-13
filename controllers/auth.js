@@ -47,7 +47,7 @@ exports.user_signup = (data, callback) => {
             });
             user.token = jwt.sign({ username: user.username, _id: user._id }, process.env.SECRET);
             user.save().then(userDB => {
-                return callback(null, { username: userDB.username, _id: userDB._id, token: userDB.token });
+                return callback(null, { token: userDB.token });
             }).catch(err => {
                 return callback(err);
             });
