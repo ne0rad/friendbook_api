@@ -4,11 +4,11 @@ const Chat = require('../models/chat');
 const io = require('../socket');
 const chat = require('../models/chat');
 
-exports.send_message = (user, data, callback, socket) => {
+exports.send_message = (user, data, callback) => {
     if (!data.message) {
         return callback('Invalid message.');
     }
-    if (!data.chatroom || !data.chatroom.match(/^[0-9a-fA-F]{24}$/)) {
+    if (!data.chatroom || !data.chatroom.toString().match(/^[0-9a-fA-F]{24}$/)) {
         return callback('Invalid chatroom.');
     }
 
@@ -73,7 +73,7 @@ exports.create_chat = (user, data, callback) => {
 }
 
 exports.join_chat = (user, data, callback) => {
-    if (!data.chatroom || !data.chatroom.match(/^[0-9a-fA-F]{24}$/)) {
+    if (!data.chatroom || !data.chatroom.toString().match(/^[0-9a-fA-F]{24}$/)) {
         return callback('Invalid chatroom.');
     }
 
@@ -104,6 +104,10 @@ exports.get_chats = (user, data, callback) => {
         .sort({ updated: -1 })
         .then(chatsDB => {
 
+            if(!chatsDB) {
+                return callback('No chats found.');
+            }
+
             // Make lastMessage max 20 characters long
             chatsDB.forEach(chatDB => {
                 if (chatDB.lastMessage && chatDB.lastMessage.message.length > 20) {
@@ -115,4 +119,26 @@ exports.get_chats = (user, data, callback) => {
         }).catch(err => {
             return callback(err);
         });
+}
+
+exports.read_chat = (user, data, callback) => {
+    if (!data.chatroom || !data.chatroom.toString().match(/^[0-9a-fA-F]{24}$/)) {
+        return callback('Invalid chatroom.');
+    }
+
+    Chat.findById(data.chatroom).then(chatDB => {
+        if (!chatDB) {
+            return callback('Invalid chatroom.');
+        } else {
+            let member = chatDB.members.find(member => member._id.toString() === user._id.toString());
+            if (!member) {
+                return callback('You are not a member of this chat.');
+            } else {
+                chatDB.readBy.push(user._id);
+                chatDB.save().then(() => {
+                    return callback(null, { chatroom: chatDB._id });
+                });
+            }
+        }
+    });
 }
