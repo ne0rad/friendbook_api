@@ -56,7 +56,7 @@ exports.signup = [
                 const token = jwt.sign({ username: user.username, _id: user._id }, process.env.SECRET);
                 user.token = token;
                 user.save();
-                return res.status(200).send({ username: user.username, token: token });
+                return res.status(200).send({ username: user.username, _id: user._id, token: token });
             });
         }
     }
@@ -106,12 +106,12 @@ exports.login = [
 
                         // All good, let's login
                         if (user.token) {
-                            return res.status(200).send({ username: user.username, token: user.token });
+                            return res.status(200).send({ username: user.username, _id: user._id, token: user.token });
                         } else {
                             const token = jwt.sign({ username: user.username, _id: user._id }, process.env.SECRET);
                             user.token = token;
                             user.save().then(() => {
-                                return res.status(200).send({ username: user.username, token: token });
+                                return res.status(200).send({ username: user.username, _id: user._id, token: token });
                             })
                         }
                     });
@@ -131,6 +131,6 @@ exports.token_login = (req, res) => {
             });
         }
         req.user = decoded;
-        res.status(200).send({ username: decoded.username, token: req.body.token })
+        res.status(200).send({ username: decoded.username, _id: decoded._id, token: req.body.token })
     });
 }
