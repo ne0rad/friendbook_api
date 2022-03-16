@@ -116,8 +116,6 @@ exports.create = [
     }
 ];
 
-
-
 exports.join = (req, res) => {
     if (!req.body.chatID || !isObjectIdValid(req.body.chatID)) {
         return res.status(401).send({ msg: "Invalid chatID." });
@@ -125,7 +123,8 @@ exports.join = (req, res) => {
 
     Chat.findById(req.body.chatID)
         .populate({ path: 'members', select: 'username' })
-        .populate('messages')
+        .populate({ path: 'messages' })
+        .slice('messages', -20)
         .then(chatDB => {
             if (!chatDB) {
                 return res.status(404).send({ msg: 'Chat not found.' });
