@@ -11,3 +11,14 @@ exports.verify_token = function (req, res, next) {
         next();
     });
 }
+
+exports.verify_token_socket = function (token, callback) {
+    if(!token) return callback('Invalid token.');
+
+    jwt.verify(token, process.env.SECRET, (err, decoded) => {
+        if (err) {
+            return callback('Invalid token.');
+        }
+        return callback(null, decoded);
+    });
+}
