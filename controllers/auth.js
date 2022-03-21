@@ -123,14 +123,11 @@ exports.login = [
 ]
 
 exports.token_login = (req, res) => {
-    if(!req.body.token) return res.status(401);
+    if (!req.body.token) return res.status(401).send({ msg: 'Invalid token.' });
     jwt.verify(req.body.token, process.env.SECRET, (err, decoded) => {
         if (err) {
-            return res.status(401).send({
-                message: 'Invalid token.'
-            });
+            return res.status(401).send({ msg: 'Invalid token.' });
         }
-        req.user = decoded;
         res.status(200).send({ username: decoded.username, _id: decoded._id, token: req.body.token })
     });
 }
