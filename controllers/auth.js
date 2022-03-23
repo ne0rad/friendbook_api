@@ -1,4 +1,5 @@
 const User = require('../models/user');
+const Chat = require('../models/chat');
 const { body, validationResult } = require('express-validator');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -124,10 +125,51 @@ exports.login = [
 
 exports.token_login = (req, res) => {
     if (!req.body.token) return res.status(401).send({ msg: 'Invalid token.' });
-    jwt.verify(req.body.token, process.env.SECRET, (err, decoded) => {
-        if (err) {
-            return res.status(401).send({ msg: 'Invalid token.' });
-        }
-        res.status(200).send({ username: decoded.username, _id: decoded._id, token: req.body.token })
+    jwt.verify(req.body.token, process.env.SECRET, (err, token_user) => {
+
+        if (err) return res.status(401).send({ msg: 'Invalid token.' });
+
+        User.findById(token_user._id)
+            .then((user) => {
+
+                var data = {
+                    username: user.username,
+                    _id: user._id,
+                    token: user.token,
+                    unreadNotifications: 0
+                };
+
+                Chat.find({ members: user._id })
+                    .populate({ path: 'members', select: 'username' })
+                    .populate('lastMessage')
+                    .sort({ updated: -1 })
+                    .then(chatsDB => {
+
+                        if (!chatsDB) {
+                            return;
+                        }
+
+                        let unreadCount = 0;
+
+
+                        // Make lastMessage max 20 characters long
+                        chatsDB.forEach(chatDB => {
+                            if (chatDB.lastMessage && chatDB.lastMessage.message.length > 20) {
+                                chatDB.lastMessage.message = chatDB.lastMessage.message.substring(0, 20) + ' ...';
+                            }
+                            if (chatDB.readBy.indexOf(user._id) === -1) {
+                                unreadCount++;
+                            }
+                        });
+
+                        data.unreadChats = unreadCount;
+                        data.chatList = chatsDB;
+
+                        res.status(200).send(data);
+                    });
+
+            }).catch(() => {
+                res.status(401).send({ msg: 'Invalid token.' });
+            })
     });
 }
