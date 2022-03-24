@@ -12,6 +12,14 @@ app.use('/chat', require('./routes/chat'));
 io.on("connection", (socket) => {
   console.log('\x1b[32m%s\x1b[0m', `[socket.io] Client connected (${socket.id})`);
 
+  socket.on('join', (data) => {
+    verify_token_socket(data.token, (err, user) => {
+      if (err) return;
+      socket.join(user._id);
+      console.log('\x1b[32m%s\x1b[0m', `[socket.io] ${user.username} is listening (${socket.id})`);
+    });
+  })
+
   socket.on('chat_join', (data) => {
     verify_token_socket(data.token, (err, user) => {
       if (err) return;
