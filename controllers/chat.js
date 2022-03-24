@@ -39,33 +39,45 @@ exports.send_message = [
             return res.status(422).json({ msg: error.msg });
         }
 
-        Chat.findById(req.body.chatID).then(chatDB => {
-            if (!chatDB) {
-                return res.status(404).send({ msg: 'Chat not found.' });
-            } else {
-                let message = new Message({
-                    message: req.body.message,
-                    author_id: req.user._id,
-                    author: req.user.username,
-                    date: Date.now()
-                });
-                message.save().then(messageDB => {
-                    if (chatDB.messages.length > 99) chatDB.messages.shift();
-                    chatDB.messages.push(messageDB._id);
-                    chatDB.updated = Date.now();
-                    chatDB.lastMessage = messageDB._id;
-                    chatDB.readBy = [req.user._id];
-
-                    chatDB.save().then(() => {
-                        io.to(chatDB._id.toString()).emit('message', { message: messageDB, chatID: chatDB._id });
-                        return res.status(200).send({ message: messageDB });
+        Chat.findById(req.body.chatID)
+            .populate({ path: 'members', select: 'username' })
+            .populate('lastMessage')
+            .sort({ updated: -1 })
+            .then(chatDB => {
+                if (!chatDB) {
+                    return res.status(404).send({ msg: 'Chat not found.' });
+                } else {
+                    let message = new Message({
+                        message: req.body.message,
+                        author_id: req.user._id,
+                        author: req.user.username,
+                        date: Date.now()
                     });
 
-                }).catch(err => {
-                    return res.status(401).send({ msg: "Database Error" });
-                });
-            }
-        });
+                    message.save().then(messageDB => {
+                        if (chatDB.messages.length > 20) chatDB.messages.shift();
+                        chatDB.messages.push(messageDB._id);
+                        chatDB.updated = Date.now();
+                        chatDB.lastMessage = messageDB._id;
+                        chatDB.readBy = [req.user._id];
+
+                        // WORKING HERE !!!!!!!!!!!!!!
+                        chatDB.members.forEach(member => {
+                            // emit message to each member
+
+                            io.to(member._id.toString()).emit('message', { data: messageDB, chatID: chatDB._id });
+                        });
+
+                        chatDB.save()
+                            .then(() => {
+                                return res.status(200);
+                            });
+
+                    }).catch(err => {
+                        return res.status(401).send({ msg: "Database Error" });
+                    });
+                }
+            });
     }
 ]
 
