@@ -1,9 +1,10 @@
-import express, { Express, Request, Response } from "express";
+import express, { Express } from "express";
 import dotenv from "dotenv";
 import cors from "cors";
 import logger from "morgan";
 import http from "http";
 import mongoose from "mongoose";
+import router from "./router";
 import { io } from "./socket";
 
 dotenv.config();
@@ -23,9 +24,7 @@ const corsOptions = {
 app.use(logger("dev"));
 app.use(cors(corsOptions));
 
-app.get("/", (req: Request, res: Response) => {
-  res.send("FriendBook API server");
-});
+app.use(router);
 
 io.attach(httpServer);
 
