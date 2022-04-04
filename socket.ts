@@ -8,9 +8,9 @@ export const io = new Server(httpServer, {
 });
 
 io.on("connection", (socket) => {
-  console.log("New client connected");
+  console.log("[socket.io] Connected :", socket.id);
 
   socket.on("disconnect", () => {
-    console.log("Client disconnected");
+    console.log("[socket.io] Disconnected :", socket.id);
   });
 });
