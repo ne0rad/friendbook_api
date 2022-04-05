@@ -10,6 +10,11 @@ import bodyParser from "body-parser";
 
 dotenv.config();
 
+// Secret is required for JWT
+if (!process.env.SECRET) {
+  console.log("\x1b[31m%s\x1b[0m", "ERROR: .env SECRET is not set");
+  throw new Error("SECRET is not set");
+}
 
 const app: Express = express();
 const port = process.env.PORT;
