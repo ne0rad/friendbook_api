@@ -1,14 +1,9 @@
-import { Router, Request, Response } from "express";
+import { Router } from "express";
+import { post_login, post_signup } from "../controllers/auth";
+
 const router = Router();
 
-router.get("/login", (req: Request, res: Response) => {
-  // TODO : Implement login
-  res.send("login");
-});
-
-router.get("/signup", (req: Request, res: Response) => {
-  // TODO : Implement signup
-  res.send("signup");
-});
+router.post("/login", post_login);
+router.post("/signup", post_signup);
 
 export default router;
