@@ -1,4 +1,4 @@
-import express, { Express } from "express";
+import express, { Express, Request, Response } from "express";
 import dotenv from "dotenv";
 import cors from "cors";
 import logger from "morgan";
@@ -25,6 +25,15 @@ app.use(logger("dev"));
 app.use(cors(corsOptions));
 
 app.use(router);
+
+router.use("*", (req: Request, res: Response) => {
+  res.status(404).send("Not Found");
+});
+
+app.use((err: Error, req: Request, res: Response) => {
+  console.error(err.stack);
+  res.status(500).send("Something broke!");
+});
 
 io.attach(httpServer);
 
