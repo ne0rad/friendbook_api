@@ -16,7 +16,7 @@ export default function verify_token() {
 
       const decoded = jwt.verify(
         token,
-        process.env.SECRET || "You should change this secret"
+        process.env.SECRET!
       );
       req["user"] = decoded;
       next();
