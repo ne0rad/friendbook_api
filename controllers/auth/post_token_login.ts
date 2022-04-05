@@ -7,13 +7,14 @@ export function post_token_login(req: Request, res: Response) {
     if (!token)
       return res.status(401).json({ msg: "Access denied. No token provided." });
 
-    if (
-      jwt.verify(token, process.env.SECRET || "You should change this secret")
-    ) {
+    const decoded: any = jwt.verify(
+      token,
+      process.env.SECRET!
+    );
+    if (decoded) {
       res.status(200).json({
         token: token,
       });
-      
     } else {
       res.status(401).json({
         msg: "Invalid Token",
