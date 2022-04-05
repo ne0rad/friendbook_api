@@ -21,6 +21,9 @@ const UserSchema = new Schema({
     type: Number,
     default: 0,
   },
+  token: {
+    type: String,
+  },
 });
 
-export default model("User", UserSchema, "users");
+export const User = model("User", UserSchema, "users");

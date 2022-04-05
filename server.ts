@@ -6,8 +6,10 @@ import http from "http";
 import mongoose from "mongoose";
 import router from "./router";
 import { io } from "./socket";
+import bodyParser from "body-parser";
 
 dotenv.config();
+
 
 const app: Express = express();
 const port = process.env.PORT;
@@ -23,6 +25,8 @@ const corsOptions = {
 };
 app.use(logger("dev"));
 app.use(cors(corsOptions));
+
+app.use(bodyParser.json());
 
 app.use(router);
 
